@@ -3,11 +3,12 @@ import {
   buildContextEntries as piBuildContextEntries,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
-import { closeSync, type Dirent, fstatSync, openSync, readSync } from "fs";
+import { closeSync, createReadStream, statSync, type Dirent, type ReadStream, fstatSync, openSync, readSync } from "fs";
 import { readdir } from "fs/promises";
+import { createInterface } from "node:readline";
 import { isAbsolute, join, normalize as normalizePath, relative, resolve as resolvePath, sep } from "path";
-import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext } from "./types";
-import type { SessionEntry as PiSessionEntry, SessionInfo as PiSessionInfo } from "@earendil-works/pi-coding-agent";
+import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext, SubagentSessionStatus } from "./types";
+import type { SessionEntry as PiSessionEntry } from "@earendil-works/pi-coding-agent";
 import { normalizeToolCalls } from "./normalize";
 import { projectIdentityKey } from "./project-identity";
 import { sessionPathKey } from "./session-path";
@@ -141,11 +142,14 @@ export function mergeSessionLists(
 }
 
 async function loadAllSessions(): Promise<SessionInfo[]> {
-  const piSessions: PiSessionInfo[] = await SessionManager.listAll();
+  const [piSessions, nestedSessions] = await Promise.all([
+    SessionManager.listAll(),
+    listNestedSubagentSessions(),
+  ]);
   const pathToId = new Map<string, string>();
   for (const s of piSessions) pathToId.set(sessionPathKey(s.path), s.id);
 
-  const sessions = piSessions.map((s) => {
+  const sessions: SessionInfo[] = piSessions.map((s) => {
     cacheSessionPath(s.id, s.path);
     const originSessionId = s.parentSessionPath ? pathToId.get(sessionPathKey(s.parentSessionPath)) : undefined;
     let subagent = null;
@@ -172,7 +176,261 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
       transient: false,
     };
   });
+
+  // Nested subagent sessions (pi TUI layout) live outside listAll()'s flat
+  // scan; merge them unless the flat scan already surfaced the same file/id.
+  const seenPaths = new Set(sessions.map((session) => sessionPathKey(session.path)));
+  const seenIds = new Set(sessions.map((session) => session.id));
+  for (const nested of nestedSessions) {
+    if (seenPaths.has(sessionPathKey(nested.path)) || seenIds.has(nested.id)) continue;
+    cacheSessionPath(nested.id, nested.path);
+    sessions.push(nested);
+  }
+
   return attachSessionProjectInfo(sessions);
+}
+
+// ============================================================================
+// Nested subagent session discovery (pi TUI / pi-subagents layout)
+// ============================================================================
+//
+// The pi TUI host stores subagent runs nested under the parent session's file
+// stem, e.g.
+//   <sessions>/<project>/<parent-timestamp>_<parent-uuid>/<run-id>/<run-N>/session.jsonl
+// SessionManager.listAll() is non-recursive, so those files are invisible to
+// it. Scan for them here and derive the parent relation from the
+// <parent-timestamp>_<parent-uuid> directory name.
+
+const SUBAGENT_PARENT_STEM_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)$/;
+const NESTED_SESSION_SCAN_DEPTH = 4;
+
+/** Parent session id for a file in the nested subagent layout, or null. */
+export function deriveNestedSubagentParentId(
+  filePath: string,
+  sessionsDir?: string,
+): string | null {
+  const sessionsRoot = resolvePath(sessionsDir ?? defaultSessionsDir());
+  const relativePath = relative(sessionsRoot, resolvePath(filePath));
+  if (
+    relativePath === "" ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  ) {
+    return null;
+  }
+  // <project>/<parent-stem>/<...> — top-level flat sessions have one segment.
+  const parts = relativePath.split(sep);
+  if (parts.length < 3) return null;
+  const match = SUBAGENT_PARENT_STEM_PATTERN.exec(parts[1]);
+  return match ? match[1] : null;
+}
+
+/** A run that finished ends with the subagent's final assistant answer. */
+export function inferSubagentStatus(lastMessageRole: string | undefined): SubagentSessionStatus {
+  return lastMessageRole === "assistant" ? "completed" : "interrupted";
+}
+
+export function truncateSubagentDescription(text: string, max = 120): string {
+  const flat = text.trim().replace(/\s+/g, " ");
+  if (flat.length <= max) return flat;
+  return `${flat.slice(0, max - 1)}…`;
+}
+
+async function collectNestedJsonlFiles(dir: string, depth: number, out: string[]): Promise<void> {
+  if (depth <= 0) return;
+  let entries: Dirent[];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory() || entry.isSymbolicLink()) {
+      await collectNestedJsonlFiles(fullPath, depth - 1, out);
+    } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+      out.push(fullPath);
+    }
+  }
+}
+
+interface NestedSessionSummary {
+  id: string;
+  cwd: string;
+  headerTimestamp?: string;
+  parentSession?: string;
+  name?: string;
+  firstMessage: string;
+  messageCount: number;
+  lastActivity?: number;
+  lastMessageRole?: string;
+}
+
+/** Stream one session file for the sidebar summary fields (no full load). */
+async function summarizeNestedSessionFile(filePath: string): Promise<NestedSessionSummary | null> {
+  let id: string | null = null;
+  let cwd = "";
+  let headerTimestamp: string | undefined;
+  let parentSession: string | undefined;
+  let name: string | undefined;
+  let firstMessage = "";
+  let messageCount = 0;
+  let lastActivity: number | undefined;
+  let lastMessageRole: string | undefined;
+
+  let stream: ReadStream;
+  try {
+    stream = createReadStream(filePath, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
+  const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  for await (const line of rl) {
+    let entry: {
+      type?: unknown;
+      id?: unknown;
+      cwd?: unknown;
+      timestamp?: unknown;
+      parentSession?: unknown;
+      name?: unknown;
+      message?: { role?: unknown; content?: unknown };
+    } | null = null;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    if (id === null) {
+      // The first parsed entry must be the session header, like the SDK.
+      if (entry.type !== "session" || typeof entry.id !== "string") return null;
+      id = entry.id;
+      cwd = typeof entry.cwd === "string" ? entry.cwd : "";
+      headerTimestamp = typeof entry.timestamp === "string" ? entry.timestamp : undefined;
+      parentSession = typeof entry.parentSession === "string" ? entry.parentSession : undefined;
+      continue;
+    }
+    if (entry.type === "session_info") {
+      if (typeof entry.name === "string" && entry.name.trim()) name = entry.name;
+      continue;
+    }
+    if (entry.type !== "message" || !entry.message) continue;
+    messageCount += 1;
+    const activity = typeof entry.timestamp === "string" ? Date.parse(entry.timestamp) : NaN;
+    if (!Number.isNaN(activity)) lastActivity = Math.max(lastActivity ?? 0, activity);
+    const role = typeof entry.message.role === "string" ? entry.message.role : undefined;
+    if (role) lastMessageRole = role;
+    if (role === "user" && !firstMessage) {
+      const content = entry.message.content;
+      if (typeof content === "string" && content.trim()) {
+        firstMessage = content;
+      } else if (Array.isArray(content)) {
+        const block = content.find(
+          (item) => item && typeof item === "object" && (item as { type?: unknown }).type === "text",
+        ) as { text?: unknown } | undefined;
+        if (block && typeof block.text === "string" && block.text.trim()) firstMessage = block.text;
+      }
+    }
+  }
+  if (!id) return null;
+  return { id, cwd, headerTimestamp, parentSession, name, firstMessage, messageCount, lastActivity, lastMessageRole };
+}
+
+/** Discover subagent sessions stored in the nested pi TUI layout. */
+export async function listNestedSubagentSessions(): Promise<SessionInfo[]> {
+  const sessionsDir = resolvePath(defaultSessionsDir());
+  let projectDirs: Dirent[];
+  try {
+    projectDirs = await readdir(sessionsDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const sessions: SessionInfo[] = [];
+  for (const projectDir of projectDirs) {
+    if (!projectDir.isDirectory() && !projectDir.isSymbolicLink()) continue;
+    const projectPath = resolvePathWithinDefaultSessions(join(sessionsDir, projectDir.name), sessionsDir);
+    if (!projectPath) continue;
+
+    let topEntries: Dirent[];
+    try {
+      topEntries = await readdir(projectPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const topEntry of topEntries) {
+      if (!topEntry.isDirectory() && !topEntry.isSymbolicLink()) continue;
+      const parentMatch = SUBAGENT_PARENT_STEM_PATTERN.exec(topEntry.name);
+      if (!parentMatch) continue;
+      const parentSessionId = parentMatch[1];
+
+      const files: string[] = [];
+      await collectNestedJsonlFiles(join(projectPath, topEntry.name), NESTED_SESSION_SCAN_DEPTH, files);
+
+      for (const filePath of files) {
+        const summary = await summarizeNestedSessionFile(filePath);
+        if (!summary) continue;
+
+        const headerTime = summary.headerTimestamp ? Date.parse(summary.headerTimestamp) : NaN;
+        let modified: string;
+        if (typeof summary.lastActivity === "number" && summary.lastActivity > 0) {
+          modified = new Date(summary.lastActivity).toISOString();
+        } else if (!Number.isNaN(headerTime)) {
+          modified = new Date(headerTime).toISOString();
+        } else {
+          try {
+            modified = statSync(filePath).mtime.toISOString();
+          } catch {
+            modified = new Date(0).toISOString();
+          }
+        }
+
+        let relation: SessionInfo["relation"];
+        if (summary.parentSession) {
+          // A fork of a subagent run: the header records the source session.
+          let originSessionId: string | undefined;
+          try {
+            originSessionId = readSessionHeader(summary.parentSession)?.id;
+          } catch {
+            originSessionId = undefined;
+          }
+          relation = { kind: "fork" as const, ...(originSessionId ? { originSessionId } : {}) };
+        } else {
+          relation = {
+            kind: "subagent" as const,
+            parentSessionId,
+            profile: "pi-subagent",
+            description: truncateSubagentDescription(
+              summary.firstMessage || summary.name || summary.id,
+            ),
+            status: inferSubagentStatus(summary.lastMessageRole),
+          };
+        }
+
+        sessions.push({
+          path: filePath,
+          id: summary.id,
+          cwd: summary.cwd,
+          ...(summary.name ? { name: summary.name } : {}),
+          created: !Number.isNaN(headerTime) ? new Date(headerTime).toISOString() : modified,
+          modified,
+          messageCount: summary.messageCount,
+          firstMessage: summary.firstMessage || "(no messages)",
+          parentSessionId: relation.kind === "subagent"
+            ? relation.parentSessionId
+            : relation.kind === "fork"
+              ? relation.originSessionId
+              : undefined,
+          relation,
+          transient: false,
+        });
+      }
+    }
+  }
+  return sessions;
 }
 
 export async function listAllSessions(options: { force?: boolean } = {}): Promise<SessionInfo[]> {

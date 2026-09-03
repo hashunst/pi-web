@@ -10,6 +10,9 @@ import {
   invalidateSessionListCache,
   buildSessionContext,
   readSessionHeader,
+  deriveNestedSubagentParentId,
+  inferSubagentStatus,
+  truncateSubagentDescription,
 } from "@/lib/session-reader";
 import { sessionPathKey } from "@/lib/session-path";
 import { getRpcSession } from "@/lib/rpc-manager";
@@ -67,6 +70,32 @@ export async function GET(
     const subagent = header
       ? readSubagentRun(entries as never, header.id, filePath)
       : null;
+    // Nested pi TUI subagent sessions carry no pi-web metadata and no
+    // parentSession header; derive the relation from the on-disk layout.
+    const firstMessageText = firstUserMessage
+      ? (() => {
+          const c = (firstUserMessage as { content: unknown }).content;
+          return typeof c === "string" ? c : (Array.isArray(c) ? (c.find((b: { type: string }) => b.type === "text") as { text: string } | undefined)?.text ?? "" : "") || "(no messages)";
+        })()
+      : "(no messages)";
+    const lastMessageEntry = [...entries].reverse().find(
+      (entry) => entry.type === "message" && (entry as { message?: { role?: string } }).message,
+    ) as { type: "message"; message: { role?: string } } | undefined;
+    const nestedSubagent = !subagent && !header?.parentSession
+      ? (() => {
+          const nestedParentId = deriveNestedSubagentParentId(filePath);
+          if (!nestedParentId) return null;
+          return {
+            kind: "subagent" as const,
+            parentSessionId: nestedParentId,
+            profile: "pi-subagent",
+            description: truncateSubagentDescription(
+              firstMessageText !== "(no messages)" ? firstMessageText : (sessionName || header?.id || "Subagent"),
+            ),
+            status: inferSubagentStatus(lastMessageEntry?.message.role),
+          };
+        })()
+      : null;
     const toolNames = readSubagentSessionResources(entries as never)?.tools
       ?? readSessionToolSelection(entries as never);
     const info = header ? (await attachSessionProjectInfo([{
@@ -83,12 +112,14 @@ export async function GET(
             return typeof c === "string" ? c : (Array.isArray(c) ? (c.find((b: { type: string }) => b.type === "text") as { text: string } | undefined)?.text ?? "" : "") || "(no messages)";
           })()
         : "(no messages)",
-      parentSessionId,
+      parentSessionId: parentSessionId ?? (nestedSubagent ? nestedSubagent.parentSessionId : undefined),
       ...(subagent
         ? { relation: { kind: "subagent" as const, parentSessionId: subagent.parentSessionId, profile: subagent.profile, description: subagent.description, status: liveRpc?.isRunning() ? "running" as const : subagent.status } }
         : header.parentSession
           ? { relation: { kind: "fork" as const, ...(parentSessionId ? { originSessionId: parentSessionId } : {}) } }
-          : {}),
+          : nestedSubagent
+            ? { relation: nestedSubagent }
+            : {}),
       transient: !filePath || !existsSync(filePath),
     }]))[0] : null;
 

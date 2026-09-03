@@ -384,6 +384,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
   const [changesCount, setChangesCount] = useState(0);
   const [changesCollapsed, setChangesCollapsed] = useState(true);
+  // Families whose subagent rows are collapsed. Absent id = expanded, so
+  // subagents are visible by default (they are otherwise only reachable via
+  // the Agents panel).
+  const [collapsedSubagentFamilies, setCollapsedSubagentFamilies] = useState<Set<string>>(() => new Set());
+  const toggleSubagentFamily = useCallback((familyId: string) => {
+    setCollapsedSubagentFamilies((prev) => {
+      const next = new Set(prev);
+      if (next.has(familyId)) next.delete(familyId);
+      else next.add(familyId);
+      return next;
+    });
+  }, []);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
@@ -1636,20 +1648,45 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           const displaySession = family.latestModified === family.root.modified
             ? family.root
             : { ...family.root, modified: family.latestModified };
+          const hasSubagents = family.subagents.length > 0;
+          const subagentsCollapsed = collapsedSubagentFamilies.has(family.root.id);
+          const sortedSubagents = hasSubagents
+            ? [...family.subagents].sort((a, b) => b.modified.localeCompare(a.modified))
+            : [];
           return (
-            <SessionItem
-              key={family.root.id}
-              session={displaySession}
-              isSelected={familySessions.some((session) => session.id === selectedSessionId)}
-              isRunning={familySessions.some((session) => runningSessionIds.has(session.id))}
-              isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))}
-              onClick={() => handleSelectSessionFromList(family.root)}
-              onRenamed={loadSessions}
-              onDeleted={(id) => {
-                onSessionDeleted?.(id);
-                loadSessions();
-              }}
-            />
+            <div key={family.root.id} style={{ display: "flex", flexDirection: "column" }}>
+              <SessionItem
+                session={displaySession}
+                isSelected={familySessions.some((session) => session.id === selectedSessionId)}
+                isRunning={familySessions.some((session) => runningSessionIds.has(session.id))}
+                isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))}
+                onClick={() => handleSelectSessionFromList(family.root)}
+                onRenamed={loadSessions}
+                onDeleted={(id) => {
+                  onSessionDeleted?.(id);
+                  loadSessions();
+                }}
+                hasChildren={hasSubagents}
+                collapsed={subagentsCollapsed}
+                onToggleCollapse={() => toggleSubagentFamily(family.root.id)}
+              />
+              {!subagentsCollapsed && sortedSubagents.map((subagent) => (
+                <SessionItem
+                  key={subagent.id}
+                  session={subagent}
+                  depth={1}
+                  isSelected={subagent.id === selectedSessionId}
+                  isRunning={runningSessionIds.has(subagent.id)}
+                  isUnread={unreadSessionIds.has(subagent.id)}
+                  onClick={() => handleSelectSessionFromList(subagent)}
+                  onRenamed={loadSessions}
+                  onDeleted={(id) => {
+                    onSessionDeleted?.(id);
+                    loadSessions();
+                  }}
+                />
+              ))}
+            </div>
           );
         })}
       </div>
