@@ -1,6 +1,5 @@
 import {
   SessionManager,
-  buildContextEntries as piBuildContextEntries,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import { closeSync, createReadStream, statSync, type Dirent, type ReadStream, fstatSync, openSync, readSync } from "fs";
@@ -8,13 +7,14 @@ import { readdir } from "fs/promises";
 import { createInterface } from "node:readline";
 import { isAbsolute, join, normalize as normalizePath, relative, resolve as resolvePath, sep } from "path";
 import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext, SubagentSessionStatus } from "./types";
-import type { SessionEntry as PiSessionEntry } from "@earendil-works/pi-coding-agent";
 import { normalizeToolCalls } from "./normalize";
+import { getThinkingPreview } from "./message-display";
 import { projectIdentityKey } from "./project-identity";
 import { sessionPathKey } from "./session-path";
 import { MAX_TOOL_RESULT_IMAGE_BYTES, TOOL_RESULT_IMAGE_MIMES } from "./tool-result-images";
 import { resolveProject, type ProjectInfo } from "./worktree";
 import { readSubagentRun, SUBAGENT_META_TYPE } from "./subagents";
+import { listSessionsIncremental } from "./session-list-scanner";
 
 export { getAgentDir };
 
@@ -142,14 +142,14 @@ export function mergeSessionLists(
 }
 
 async function loadAllSessions(): Promise<SessionInfo[]> {
-  const [piSessions, nestedSessions] = await Promise.all([
-    SessionManager.listAll(),
+  const [scanned, nestedSessions] = await Promise.all([
+    listSessionsIncremental(),
     listNestedSubagentSessions(),
   ]);
   const pathToId = new Map<string, string>();
-  for (const s of piSessions) pathToId.set(sessionPathKey(s.path), s.id);
+  for (const s of scanned) pathToId.set(sessionPathKey(s.path), s.id);
 
-  const sessions: SessionInfo[] = piSessions.map((s) => {
+  const sessions: SessionInfo[] = scanned.map((s) => {
     cacheSessionPath(s.id, s.path);
     const originSessionId = s.parentSessionPath ? pathToId.get(sessionPathKey(s.parentSessionPath)) : undefined;
     let subagent = null;
@@ -163,8 +163,8 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
       id: s.id,
       cwd: s.cwd,
       name: s.name,
-      created: s.created instanceof Date ? s.created.toISOString() : String(s.created),
-      modified: s.modified instanceof Date ? s.modified.toISOString() : String(s.modified),
+      created: s.created.toISOString(),
+      modified: s.modified.toISOString(),
       messageCount: s.messageCount,
       firstMessage: s.firstMessage || "(no messages)",
       parentSessionId: originSessionId,
@@ -177,8 +177,8 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
     };
   });
 
-  // Nested subagent sessions (pi TUI layout) live outside listAll()'s flat
-  // scan; merge them unless the flat scan already surfaced the same file/id.
+  // Nested subagent sessions (pi TUI layout) live outside the incremental
+  // scan; merge them unless the scan already surfaced the same file/id.
   const seenPaths = new Set(sessions.map((session) => sessionPathKey(session.path)));
   const seenIds = new Set(sessions.map((session) => session.id));
   for (const nested of nestedSessions) {
@@ -575,6 +575,10 @@ export function invalidateSessionListCache(): void {
   globalThis.__piSessionListCache = undefined;
 }
 
+export function getSessionListVersion(): number {
+  return globalThis.__piSessionListGeneration ?? 0;
+}
+
 function getPathCache(): Map<string, string> {
   if (!globalThis.__piSessionPathCache) globalThis.__piSessionPathCache = new Map();
   return globalThis.__piSessionPathCache;
@@ -664,30 +668,39 @@ export function getSessionEntries(filePath: string): SessionEntry[] {
   return entries as unknown as SessionEntry[];
 }
 
+export function getLatestModelChange(entries: SessionEntry[]): SessionContext["model"] {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.type === "model_change") {
+      return { provider: entry.provider, modelId: entry.modelId };
+    }
+  }
+  return null;
+}
+
 function getSessionSettings(entries: SessionEntry[], leafId?: string | null): Pick<SessionContext, "thinkingLevel" | "model"> {
   if (leafId === null) return { thinkingLevel: "off", model: null };
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  let current = leafId ? byId.get(leafId) : undefined;
-  current ??= entries[entries.length - 1];
+  const branch = sliceActiveBranch(entries, leafId ?? null, entries.length);
   let thinkingLevel: string | undefined;
-  let model: SessionContext["model"] | undefined;
+  let responseModel: SessionContext["model"] | undefined;
 
-  while (current && (thinkingLevel === undefined || model === undefined)) {
-    if (thinkingLevel === undefined && current.type === "thinking_level_change") {
-      thinkingLevel = current.thinkingLevel;
+  for (let i = branch.length - 1; i >= 0 && (thinkingLevel === undefined || responseModel === undefined); i--) {
+    const entry = branch[i];
+    if (thinkingLevel === undefined && entry.type === "thinking_level_change") {
+      thinkingLevel = entry.thinkingLevel;
     }
-    if (model === undefined && current.type === "model_change") {
-      model = { provider: current.provider, modelId: current.modelId };
-    } else if (model === undefined && current.type === "message" && current.message.role === "assistant") {
-      const message = current.message as { provider?: unknown; model?: unknown };
+    if (responseModel === undefined && entry.type === "message" && entry.message.role === "assistant") {
+      const message = entry.message as { provider?: unknown; model?: unknown };
       if (typeof message.provider === "string" && typeof message.model === "string") {
-        model = { provider: message.provider, modelId: message.model };
+        responseModel = { provider: message.provider, modelId: message.model };
       }
     }
-    current = current.parentId ? byId.get(current.parentId) : undefined;
   }
 
-  return { thinkingLevel: thinkingLevel ?? "off", model: model ?? null };
+  return {
+    thinkingLevel: thinkingLevel ?? "off",
+    model: getLatestModelChange(branch) ?? responseModel ?? null,
+  };
 }
 
 export interface BuildSessionContextOptions {
@@ -705,29 +718,21 @@ export function buildSessionContext(
   options: BuildSessionContextOptions = {},
 ): SessionContext {
   const { tail, excludeLeaf } = options;
-  // Restrict SDK conversion and the response payload to the requested page.
-  const sliced = tail && tail > 0 ? sliceActiveBranch(entries, leafId ?? null, tail, excludeLeaf) : entries;
-  const hasMore = Boolean(tail && tail > 0 && sliced[0]?.parentId);
-  const byId = new Map<string, SessionEntry>();
-  for (const e of sliced) byId.set(e.id, e);
-
-  const piEntries = sliced as unknown as PiSessionEntry[];
-  const contextEntries = piBuildContextEntries(
-    piEntries,
-    leafId,
-    byId as unknown as Map<string, PiSessionEntry>,
+  // History pages retain the original branch order, including compacted messages.
+  // SDK context filtering can drop a page's messages when firstKeptEntryId is outside it.
+  const sliced = leafId === null ? [] : sliceActiveBranch(
+    entries, leafId ?? null, tail && tail > 0 ? tail : entries.length, excludeLeaf,
   );
+  const hasMore = Boolean(tail && tail > 0 && sliced[0]?.parentId);
 
-  // Convert the SDK-selected context entries and their IDs together. This keeps
-  // fork/navigation targets aligned while preserving pi's compaction ordering.
+  // Convert messages and their IDs together to keep fork/navigation targets aligned.
   const messages: AgentMessage[] = [];
   const entryIds: string[] = [];
-  for (const entry of contextEntries) {
-    const localEntry = entry as unknown as SessionEntry;
-    const m = entryToUiMessage(localEntry, options);
+  for (const entry of sliced) {
+    const m = entryToUiMessage(entry, options);
     if (m) {
       messages.push(m);
-      entryIds.push(localEntry.id);
+      entryIds.push(entry.id);
     }
   }
 
@@ -871,7 +876,7 @@ function entryToUiMessage(
         ...message,
         content: content.map((block) => (
           block.type === "thinking" && block.thinking.trim() !== ""
-            ? { ...block, thinking: "", deferred: true }
+            ? { ...block, thinking: getThinkingPreview(block.thinking), deferred: true }
             : block
         )),
       };
