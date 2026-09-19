@@ -45,7 +45,7 @@ function ToolbarIconButton({
   skipHover,
   color,
   background = "none",
-  marginRight,
+  marginInlineEnd,
   ariaPressed,
   children,
 }: {
@@ -55,7 +55,7 @@ function ToolbarIconButton({
   skipHover?: boolean;
   color: string;
   background?: string;
-  marginRight?: number;
+  marginInlineEnd?: number;
   ariaPressed?: boolean;
   children: ReactNode;
 }) {
@@ -79,7 +79,7 @@ function ToolbarIconButton({
       style={{
         position: "relative",
         display: "flex", alignItems: "center", justifyContent: "center",
-        width: 26, height: 26, padding: 0, marginRight,
+        width: 26, height: 26, padding: 0, marginInlineEnd,
         background,
         border: "none",
         color,
@@ -1072,8 +1072,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 color: selectedCwd ? "var(--text-muted)" : "var(--text-dim)",
                 cursor: selectedCwd ? "pointer" : "not-allowed",
                 height: 32,
-                paddingLeft: 10,
-                paddingRight: 12,
+                paddingInlineStart: 10,
+                paddingInlineEnd: 12,
                 borderRadius: 7,
                 fontSize: 12,
                 fontWeight: 500,
@@ -1173,7 +1173,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   height: 8,
                   borderRadius: "50%",
                   flexShrink: 0,
-                  marginLeft: 6,
+                  marginInlineStart: 6,
                   background: "var(--accent)",
                 }}
               />
@@ -1519,7 +1519,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                                title={t("sidebar.removeWorktreeTitle", { path: wt.path })}
                               style={{
                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                width: 34, height: 28, padding: 0, marginRight: 4,
+                                width: 34, height: 28, padding: 0, marginInlineEnd: 4,
                                 background: "none", border: "none",
                                 color: "var(--text-dim)", cursor: "pointer",
                                 borderRadius: 5, flexShrink: 0,
@@ -1901,7 +1901,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               skipHover={explorerRefreshDone}
               color={explorerRefreshDone ? "#4ade80" : "var(--text-dim)"}
               background={explorerRefreshDone ? "rgba(74,222,128,0.18)" : "none"}
-              marginRight={6}
+              marginInlineEnd={6}
             >
               {explorerRefreshDone ? (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2015,7 +2015,7 @@ function showProjectActivity(
 ): ReactNode {
   if (!activity || (activity.running === 0 && activity.unread === 0)) return null;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginInlineStart: 6 }}>
       {activity.running > 0 && (
         <span
           title={t("sidebar.agentRunning")}
@@ -2070,7 +2070,7 @@ function SessionItem({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { locale, t } = useI18n();
+  const { locale, dir, t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -2177,13 +2177,13 @@ function SessionItem({
         height: SESSION_LIST_ITEM_HEIGHT,
         display: "flex",
         alignItems: "center",
-        paddingLeft: depth > 0 ? depth * 12 + 14 : 14,
-        paddingRight: 8,
+        paddingInlineStart: depth > 0 ? depth * 12 + 14 : 14,
+        paddingInlineEnd: 8,
         cursor: confirmDelete || renaming ? "default" : "pointer",
         background: confirmDelete
           ? "rgba(239,68,68,0.06)"
           : isSelected ? "var(--bg-selected)" : hovered ? "var(--bg-hover)" : "transparent",
-        borderLeft: confirmDelete
+        [dir === "rtl" ? "borderRight" : "borderLeft"]: confirmDelete
           ? "2px solid #ef4444"
           : isSelected ? "2px solid var(--accent)" : "2px solid transparent",
         transition: "background 0.1s",

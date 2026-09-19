@@ -210,7 +210,7 @@ function SegmentedScope({
   projectResourcesLoaded: boolean;
   onChange: (scope: PluginScope) => void;
 }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   return (
     <div
       style={{
@@ -235,7 +235,7 @@ function SegmentedScope({
             style={{
               width: 76,
               border: "none",
-              borderRight: scope === "global" ? "1px solid var(--border)" : "none",
+              [dir === "rtl" ? "borderLeft" : "borderRight"]: scope === "global" ? "1px solid var(--border)" : "none",
               background: active ? "var(--bg-selected)" : "none",
               color: active ? "var(--text)" : "var(--text-muted)",
               cursor: disabled ? "not-allowed" : "pointer",

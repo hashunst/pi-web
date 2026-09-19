@@ -25,7 +25,7 @@ interface Props {
 }
 
 export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [hoveredClose, setHoveredClose] = useState<string | null>(null);
 
   return (
@@ -57,8 +57,10 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
               } else if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
                 event.preventDefault();
                 const index = tabs.findIndex((item) => item.id === tab.id);
+                // Arrow keys follow the reading direction: right = next in LTR, next = left in RTL.
+                const step = event.key === "ArrowRight" ? (dir === "rtl" ? -1 : 1) : event.key === "ArrowLeft" ? (dir === "rtl" ? 1 : -1) : 0;
                 const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
-                  : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+                  : (index + step + tabs.length) % tabs.length;
                 onSelectTab(tabs[next].id);
                 (event.currentTarget.parentElement?.children[next] as HTMLElement)?.focus();
               }
@@ -78,9 +80,9 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
               alignItems: "center",
               gap: 6,
               height: 36,
-              paddingLeft: 12,
-              paddingRight: 6,
-              borderRight: "1px solid var(--border)",
+              paddingInlineStart: 12,
+              paddingInlineEnd: 6,
+              [dir === "rtl" ? "borderLeft" : "borderRight"]: "1px solid var(--border)",
               background: isActive ? "var(--bg)" : "var(--bg-panel)",
               cursor: "pointer",
               fontSize: 12,

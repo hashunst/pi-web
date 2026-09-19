@@ -555,7 +555,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   cwd,
   compact = false,
 }: Props, ref) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const { fontSize } = useChatAppearance();
   const isMobile = useIsMobile();
   const [value, setValue] = useState(() => (draftKey ? getDraft(draftKey)?.value ?? "" : ""));
@@ -1570,7 +1570,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         border: 0,
         background: "transparent",
         padding: compact ? 0 : "0 16px 8px",
-        paddingRight: compact ? 0 : isMobile ? 16 : 52, // desktop: 16px base + 36px for ChatMinimap alignment
+        paddingInlineEnd: compact ? 0 : isMobile ? 16 : 52, // desktop: 16px base + 36px for ChatMinimap alignment
         opacity: builtinCommandPending ? 0.5 : 1,
         transition: "opacity 0.15s",
       }}
@@ -1682,7 +1682,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
-             {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}{retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: 4 }}>— {retryInfo.errorMessage}</span>}
+             {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}{retryInfo.errorMessage && <span style={{ opacity: 0.7, marginInlineStart: 4 }}>— {retryInfo.errorMessage}</span>}
           </div>
         )}
         {compactResultText && (
@@ -1732,7 +1732,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <button
                   onClick={() => removeImage(i)}
                   style={{
-                    position: "absolute", top: -4, right: -4,
+                    position: "absolute", top: -4, insetInlineEnd: -4,
                     width: 16, height: 16, borderRadius: "50%",
                     background: "var(--bg-panel)", border: "1px solid var(--border)",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -1953,7 +1953,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 /{command.name}
                                 {dormant && (
                                   <span style={{
-                                    marginLeft: 6,
+                                    marginInlineStart: 6,
                                     padding: "0 4px",
                                     border: "1px solid var(--border)",
                                     borderRadius: 3,
@@ -2312,7 +2312,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             alignItems: "center",
             justifyContent: "flex-end",
             position: "relative",
-            marginLeft: isMobile ? 0 : "auto",
+            marginInlineStart: isMobile ? 0 : "auto",
           }}>
             {isMobile && (
               <button
@@ -2363,7 +2363,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               gap: isMobile ? 1 : 2,
               ...(isMobile ? {
                 position: "absolute",
-                right: 0,
+                insetInlineEnd: 0,
                 bottom: 0,
                 zIndex: 60,
                 padding: 1,
@@ -2419,7 +2419,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 {thinkingDropdownOpen && (
                   <div style={{
                     position: "absolute", bottom: "calc(100% + 6px)",
-                    ...(isMobile ? { left: 0 } : { right: 0 }),
+                    ...(isMobile ? { insetInlineStart: 0 } : { insetInlineEnd: 0 }),
                     zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
                     borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
                     overflow: "hidden", minWidth: 180,
@@ -2456,9 +2456,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             : <span style={{ width: 10, flexShrink: 0 }} />}
                           <span style={{ flex: 1 }}>
                             {displayLabel}
-                            {showOriginal && <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginLeft: 5 }}>({lvl})</span>}
+                            {showOriginal && <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginInlineStart: 5 }}>({lvl})</span>}
                           </span>
-                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginInlineStart: 8 }}>{desc}</span>
                         </button>
                       );
                     })}
@@ -2506,8 +2506,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   <div style={{
                     position: "absolute",
                     bottom: "calc(100% + 6px)",
-                    right: isMobile ? undefined : 0,
-                    left: isMobile ? 0 : undefined,
+                    insetInlineEnd: isMobile ? undefined : 0,
+                    insetInlineStart: isMobile ? 0 : undefined,
                     zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
                     borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
                     overflow: "hidden", minWidth: 120,
@@ -2541,7 +2541,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
                             : <span style={{ width: 10, flexShrink: 0 }} />}
                           <span style={{ flex: 1 }}>{lvl}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginInlineStart: 8 }}>{desc}</span>
                         </button>
                       );
                     })}
@@ -2681,11 +2681,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   width: 36,
                   height: 32,
                   padding: 0,
-                  marginLeft: 0,
+                  marginInlineStart: 0,
                   background: "var(--bg-hover)",
                   border: "none",
-                  borderLeft: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-                  borderRadius: "0 9px 9px 0",
+                  [dir === "rtl" ? "borderRight" : "borderLeft"]: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
+                  borderRadius: dir === "rtl" ? "9px 0 0 9px" : "0 9px 9px 0",
                   color: "var(--text)",
                   cursor: "pointer",
                   transition: "background 0.12s, color 0.12s",

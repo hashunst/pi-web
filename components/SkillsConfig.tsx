@@ -240,7 +240,7 @@ function AddSkillPanel({
   projectResourcesLoaded: boolean;
   onInstalled: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -389,7 +389,7 @@ function AddSkillPanel({
                   color: scope === s ? "var(--text)" : "var(--text-dim)",
                   fontWeight: scope === s ? 600 : 400,
                   opacity: s === "project" && !projectResourcesLoaded ? 0.45 : 1,
-                  borderRight:
+                  [dir === "rtl" ? "borderLeft" : "borderRight"]:
                     s === "global" ? "1px solid var(--border)" : "none",
                 }}
               >

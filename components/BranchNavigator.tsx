@@ -153,7 +153,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
             {hasLine && (
               <div style={{
                 position: "absolute",
-                left: 7,
+                insetInlineStart: 7,
                 top: 0,
                 bottom: 0,
                 width: 1,
@@ -168,7 +168,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
           {/* vertical line up (to parent) */}
           <div style={{
             position: "absolute",
-            left: 7,
+            insetInlineStart: 7,
             top: 0,
             bottom: isLast ? "50%" : 0,
             width: 1,
@@ -177,7 +177,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
           {/* horizontal line to node */}
           <div style={{
             position: "absolute",
-            left: 7,
+            insetInlineStart: 7,
             top: "50%",
             width: 9,
             height: 1,
@@ -193,7 +193,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
           flexShrink: 0,
           background: isActive ? "var(--accent)" : isOnPath ? "var(--text-muted)" : "var(--border)",
           border: isActive ? "none" : "1px solid var(--text-dim)",
-          marginRight: 6,
+          marginInlineEnd: 6,
           transition: "background 0.12s",
         }} />
 
@@ -207,7 +207,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
             border: `1px solid ${role === "user" ? "rgba(37,99,235,0.2)" : "var(--border)"}`,
             borderRadius: 3,
             padding: "0 4px",
-            marginRight: 5,
+            marginInlineEnd: 5,
             flexShrink: 0,
             lineHeight: "16px",
           }}>
@@ -217,7 +217,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
 
         {/* Skipped indicator */}
         {skipped > 0 && (
-          <span style={{ fontSize: 10, color: "var(--text-dim)", marginRight: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: "var(--text-dim)", marginInlineEnd: 5, flexShrink: 0 }}>
             +{skipped}
           </span>
         )}
@@ -254,7 +254,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
 }
 
 export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, containerRef, open: openProp, onToggle, hasSession, compact, hideInlineButton }: Props) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [openInternal, setOpenInternal] = useState(false);
   const open = openProp !== undefined ? openProp : openInternal;
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -302,7 +302,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   );
 
   const chevron = (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginInlineStart: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
       <polyline points="2 3.5 5 6.5 8 3.5" />
     </svg>
   );
@@ -323,7 +323,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
             background: open ? "var(--bg-selected)" : "none",
             border: "none",
             borderTop: open ? "2px solid var(--accent)" : "2px solid transparent",
-            borderRight: "1px solid var(--border)",
+            [dir === "rtl" ? "borderLeft" : "borderRight"]: "1px solid var(--border)",
             cursor: "pointer",
             color: open ? "var(--text)" : "var(--text-muted)",
             fontSize: 11,

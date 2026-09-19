@@ -56,7 +56,7 @@ export function SessionSearch({ open, query, refreshKey, children, selectedSessi
           type="button"
           onClick={() => onSelectSession(session, entryId, blockIndex)}
           aria-current={session.id === selectedSessionId ? "true" : undefined}
-          className={`block w-full cursor-pointer border-b border-border px-3 py-2 text-left hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent ${session.id === selectedSessionId ? "bg-bg-selected" : ""}`}
+          className={`block w-full cursor-pointer border-b border-border px-3 py-2 text-start hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent ${session.id === selectedSessionId ? "bg-bg-selected" : ""}`}
         >
           <span className="block truncate text-xs font-medium text-text">{session.name || session.firstMessage}</span>
           <span className="mt-1 flex min-w-0 gap-2 text-[10px] text-text-dim">

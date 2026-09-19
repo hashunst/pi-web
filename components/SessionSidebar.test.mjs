@@ -89,7 +89,7 @@ test("includes project activity counts in accessible labels", () => {
 
 test("formats session timestamps with the active locale", () => {
   assert.match(source, /import \{ formatRelativeTime \} from "@\/lib\/i18n\/format"/);
-  assert.match(sessionItemSource, /const \{ locale, t \} = useI18n\(\)/);
+  assert.match(sessionItemSource, /const \{ locale, dir, t \} = useI18n\(\)/);
   assert.match(sessionItemSource, /formatRelativeTime\(session\.modified, locale\)/);
 });
 

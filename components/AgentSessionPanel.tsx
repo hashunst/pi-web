@@ -80,7 +80,7 @@ function AgentRow({
   running: boolean;
   onSelect: () => void;
 }) {
-  const { locale, t } = useI18n();
+  const { locale, dir, t } = useI18n();
   const relation = session.relation?.kind === "subagent" ? session.relation : null;
   const status: SubagentSessionStatus = running ? "running" : relation?.status ?? "completed";
   const primary = main ? t("agentSwitcher.main") : relation?.description || sessionTitle(session);
@@ -104,11 +104,11 @@ function AgentRow({
         padding: "7px 12px",
         border: "none",
         borderBottom: "1px solid var(--border)",
-        borderLeft: selected ? "2px solid var(--accent)" : "2px solid transparent",
+        [dir === "rtl" ? "borderRight" : "borderLeft"]: selected ? "2px solid var(--accent)" : "2px solid transparent",
         background: selected ? "var(--bg-selected)" : "transparent",
         color: "var(--text)",
         cursor: "pointer",
-        textAlign: "left",
+        textAlign: "start",
       }}
       onMouseEnter={(event) => {
         if (!selected) event.currentTarget.style.background = "var(--bg-hover)";
@@ -190,7 +190,7 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
             {t("agentSwitcher.count", { count: subagents.length })}
           </span>
           {runningCount > 0 && (
-            <span style={{ marginLeft: "auto", color: "var(--accent)", fontSize: 11 }}>
+            <span style={{ marginInlineStart: "auto", color: "var(--accent)", fontSize: 11 }}>
               {t("agentSwitcher.runningCount", { count: runningCount })}
             </span>
           )}

@@ -203,7 +203,7 @@ function SecretTextInput({
   style?: React.CSSProperties;
 }) {
   const [visible, setVisible] = useState(false);
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
 
   useEffect(() => {
     if (!value) setVisible(false);
@@ -217,7 +217,7 @@ function SecretTextInput({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        style={{ ...inputStyle, paddingRight: 34, fontFamily: mono ? "var(--font-mono)" : "inherit" }}
+        style={{ ...inputStyle, paddingInlineEnd: 34, fontFamily: mono ? "var(--font-mono)" : "inherit" }}
         autoComplete={autoComplete}
         spellCheck={spellCheck}
       />
@@ -228,7 +228,7 @@ function SecretTextInput({
          title={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
         style={{
           position: "absolute",
-          right: 5,
+          insetInlineEnd: 5,
           top: "50%",
           transform: "translateY(-50%)",
           width: 24,
@@ -297,7 +297,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
   onChange: (p: ProviderEntry) => void; onRename: (n: string) => void; onDelete: () => void;
   onAddModels: (models: DiscoveredModel[]) => void;
 }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [editingName, setEditingName] = useState(name);
   const [discoveryState, setDiscoveryState] = useState<ModelDiscoveryState>({ phase: "idle" });
   const [discoveryQuery, setDiscoveryQuery] = useState("");
@@ -560,6 +560,7 @@ function ThinkingLevelMapEditor({
   onChange: (v: Record<string, string | null> | undefined) => void;
 }) {
   const map = value ?? {};
+  const { dir } = useI18n();
 
   const setLevel = (level: ThinkingLevel, entry: string | null | "omit") => {
     const next = { ...map };
@@ -636,7 +637,7 @@ function ThinkingLevelMapEditor({
               </button>
               <button
                 onClick={() => setLevel(level, null)}
-                style={{ ...btnBase, borderLeft: "1px solid var(--border)", ...(state === "null" ? btnActiveDisabled : {}) }}
+                style={{ ...btnBase, [dir === "rtl" ? "borderRight" : "borderLeft"]: "1px solid var(--border)", ...(state === "null" ? btnActiveDisabled : {}) }}
               >
                 Disabled
               </button>
@@ -645,7 +646,7 @@ function ThinkingLevelMapEditor({
             <div style={{ display: "flex", borderRadius: 5, border: `1px solid ${state === "string" ? "var(--accent)" : "var(--border)"}`, overflow: "hidden", transition: "border-color 0.1s" }}>
               <button
                 onClick={() => setLevel(level, strVal || level)}
-                style={{ ...btnBase, ...(state === "string" ? btnActive : {}), borderRight: "1px solid var(--border)", flexShrink: 0 }}
+                style={{ ...btnBase, ...(state === "string" ? btnActive : {}), [dir === "rtl" ? "borderLeft" : "borderRight"]: "1px solid var(--border)", flexShrink: 0 }}
               >
                 Custom
               </button>
@@ -817,7 +818,7 @@ function ModelDetail({
   onDelete: () => void;
 }) {
   const [testState, setTestState] = useState<ModelTestState>({ phase: "idle" });
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [catalogState, setCatalogState] = useState<ModelCatalogState>({ phase: "idle" });
   const [costEditing, setCostEditing] = useState(false);
   const [costDraft, setCostDraft] = useState<ModelCostDraft>(() => modelCostToDraft(model.cost));
@@ -1092,7 +1093,7 @@ function ModelDetail({
             href="https://github.com/anomalyco/models.dev"
             target="_blank"
             rel="noreferrer"
-            style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 10, textDecoration: "none" }}
+            style={{ marginInlineStart: "auto", color: "var(--text-dim)", fontSize: 10, textDecoration: "none" }}
           >
             {t("models.catalogSource")}
           </a>

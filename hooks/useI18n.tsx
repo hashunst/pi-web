@@ -13,6 +13,7 @@ interface I18nContextValue {
   setLocale: (locale: Locale) => void;
   t: (key: string, params?: TranslationParams) => string;
   supportedLocales: LocalePlugin[];
+  dir: "ltr" | "rtl";
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -27,7 +28,7 @@ function getMessages(): Record<string, Record<string, string>> {
 function readInitialLocale(): Locale {
   try {
     const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (stored === "en" || stored === "zh-CN" || stored === "zh-TW") return stored;
+    if (stored === "en" || stored === "zh-CN" || stored === "zh-TW" || stored === "fa") return stored;
   } catch {
     // 隐私模式或存储不可用时继续使用浏览器语言。
   }
@@ -52,6 +53,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const next = readInitialLocale();
     setLocaleState(next);
     document.documentElement.lang = next;
+    document.documentElement.dir = next === "fa" ? "rtl" : "ltr";
     setHydrated(true);
   }, []);
 
@@ -59,6 +61,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     if (!getLocalePlugin(next)) return;
     setLocaleState(next);
     document.documentElement.lang = next;
+    document.documentElement.dir = next === "fa" ? "rtl" : "ltr";
     try {
       window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
     } catch {
@@ -67,7 +70,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback((key: string, params?: TranslationParams) => translateMessage(locale, key, messages, params), [locale, messages]);
-  const value = useMemo(() => ({ locale: hydrated ? locale : defaultLocale, setLocale, t, supportedLocales }), [hydrated, locale, setLocale, t, supportedLocales]);
+  const value = useMemo(() => {
+    const dir: "ltr" | "rtl" = locale === "fa" ? "rtl" : "ltr";
+    return { locale: hydrated ? locale : defaultLocale, setLocale, t, supportedLocales, dir };
+  }, [hydrated, locale, setLocale, t, supportedLocales]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

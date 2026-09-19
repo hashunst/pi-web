@@ -76,7 +76,7 @@
   font-weight: 500;
   letter-spacing: 0;
   line-height: 18px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   overflow: hidden;
   transition: background 100ms ease;
@@ -163,7 +163,7 @@
   letter-spacing: 0;
   line-height: 18px;
   overflow: hidden;
-  text-align: left;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
@@ -229,4 +229,48 @@
 .assistantJump:focus-visible {
   outline: 1px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
   outline-offset: 1px;
+}
+
+/* Persian (RTL): the minimap docks on the left, so its preview opens to the
+   right and the number gutter (first grid column) flips to the right edge. */
+:global([dir="rtl"]) .preview {
+  right: auto;
+  left: 100%;
+  border-left: 0;
+  border-right: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  box-shadow: 10px 0 26px rgba(0, 0, 0, 0.07);
+}
+
+:global([dir="rtl"]) .turn[data-located="true"] {
+  box-shadow: inset -2px 0 0 color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+
+:global([dir="rtl"]) .user,
+:global([dir="rtl"]) .heading,
+:global([dir="rtl"]) .paragraph {
+  margin-left: 0;
+  margin-right: -34px;
+  padding-left: 10px;
+  padding-right: 40px;
+}
+
+:global([dir="rtl"]) .heading[data-level="2"] {
+  padding-left: 10px;
+  padding-right: 50px;
+}
+
+:global([dir="rtl"]) .heading[data-level="3"] {
+  padding-left: 10px;
+  padding-right: 60px;
+}
+
+:global([dir="rtl"]) .assistantJump {
+  left: auto;
+  right: -29px;
+}
+
+:global([dir="rtl"]) .user:focus-visible,
+:global([dir="rtl"]) .heading:focus-visible,
+:global([dir="rtl"]) .paragraph:focus-visible {
+  box-shadow: inset -2px 0 0 color-mix(in srgb, var(--text-muted) 65%, transparent);
 }

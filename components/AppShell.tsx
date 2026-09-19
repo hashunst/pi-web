@@ -81,7 +81,13 @@ export function AppShell() {
   const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
   // Keep the system-theme subscription mounted for the lifetime of the app.
   useTheme();
-  const { locale, t: translate } = useI18n();
+  const { locale, dir, t: translate } = useI18n();
+  // In RTL (Persian) the shell is mirrored: the session sidebar docks on the
+  // right and the file panel on the left. "nextSide"/"prevSide" are the
+  // physical border sides that face the next/previous item in a row.
+  const rtl = dir === "rtl";
+  const nextSide: "borderLeft" | "borderRight" = rtl ? "borderLeft" : "borderRight";
+  const prevSide: "borderLeft" | "borderRight" = rtl ? "borderRight" : "borderLeft";
   const isMobile = useIsMobile();
   const isNarrowMobile = useIsNarrowMobile();
   useViewportHeight();
@@ -204,7 +210,7 @@ export function AppShell() {
     cssVariable: "--sidebar-width",
     defaultWidth: SIDEBAR_DEFAULT_WIDTH,
     getMaxWidth: getResponsiveSidebarMaxWidth,
-    growthDirection: "right",
+    growthDirection: rtl ? "left" : "right",
     maxWidth: SIDEBAR_MAX_WIDTH,
     minWidth: SIDEBAR_MIN_WIDTH,
     storageKey: "pi-sidebar-width",
@@ -216,7 +222,7 @@ export function AppShell() {
     defaultWidth: RIGHT_PANEL_FALLBACK_WIDTH,
     getDefaultWidth: getResponsiveRightPanelWidth,
     getMaxWidth: getResponsiveRightPanelMaxWidth,
-    growthDirection: "left",
+    growthDirection: rtl ? "right" : "left",
     maxWidth: RIGHT_PANEL_MAX_WIDTH,
     minWidth: RIGHT_PANEL_MIN_WIDTH,
     storageKey: "pi-right-panel-width",
@@ -1205,7 +1211,7 @@ export function AppShell() {
           padding: mobileBanner ? "6px 12px" : "0 12px",
           background: mobileBanner ? "color-mix(in srgb, #d97706 8%, var(--bg-panel))" : "none",
           border: "none",
-          borderRight: mobileBanner ? "none" : "1px solid var(--border)",
+          [nextSide]: mobileBanner ? "none" : "1px solid var(--border)",
           borderBottom: mobileBanner ? "1px solid var(--border)" : "none",
           color: "#d97706",
           cursor: "pointer",
@@ -1261,7 +1267,7 @@ export function AppShell() {
             background: "none",
             border: "none",
             borderTop: "2px solid transparent",
-            borderRight: "1px solid var(--border)",
+            [nextSide]: "1px solid var(--border)",
             color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
@@ -1342,7 +1348,7 @@ export function AppShell() {
                 height: "100%", padding: mobile ? 0 : "0 12px",
                 background: "none", border: "none",
                 borderTop: "2px solid transparent",
-                borderRight: "1px solid var(--border)",
+                [nextSide]: "1px solid var(--border)",
                 color: isError ? "#dc2626" : isSuccess ? "var(--accent)" : disabled ? "var(--text-dim)" : "var(--text-muted)",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled && autoNameStatus.kind !== "naming" ? 0.45 : 1,
@@ -1395,7 +1401,7 @@ export function AppShell() {
               background: activeTopPanel === "agents" ? "var(--bg-selected)" : "none",
               border: "none",
               borderTop: activeTopPanel === "agents" ? "2px solid var(--accent)" : "2px solid transparent",
-              borderRight: "1px solid var(--border)",
+              [nextSide]: "1px solid var(--border)",
               color: activeTopPanel === "agents" ? "var(--text)" : "var(--text-muted)",
               cursor: "pointer", flexShrink: 0, fontSize: 11, whiteSpace: "nowrap",
               transition: "color 0.1s, background 0.1s",
@@ -1412,7 +1418,7 @@ export function AppShell() {
                 minWidth: 15, height: 15, padding: "0 4px", display: "grid", placeItems: "center",
                 borderRadius: 7, background: "var(--bg-selected)", color: "var(--accent)",
                 fontSize: 10, lineHeight: 1, fontVariantNumeric: "tabular-nums",
-                ...(mobile ? { position: "absolute", top: 2, right: 2, minWidth: 13, height: 13, padding: "0 3px", fontSize: 9 } : {}),
+                ...(mobile ? { position: "absolute", top: 2, insetInlineEnd: 2, minWidth: 13, height: 13, padding: "0 3px", fontSize: 9 } : {}),
               }}
             >
               {activeSessionFamily!.subagents.length}
@@ -1432,7 +1438,7 @@ export function AppShell() {
               background: activeTopPanel === "branches" ? "var(--bg-selected)" : "none",
               border: "none",
               borderTop: activeTopPanel === "branches" ? "2px solid var(--accent)" : "2px solid transparent",
-              borderRight: "1px solid var(--border)",
+              [nextSide]: "1px solid var(--border)",
               color: activeTopPanel === "branches" ? "var(--text)" : "var(--text-muted)",
               cursor: "pointer", flexShrink: 0,
             }}
@@ -1472,7 +1478,7 @@ export function AppShell() {
             background: activeTopPanel === "system" ? "var(--bg-selected)" : "none",
             border: "none",
             borderTop: activeTopPanel === "system" ? "2px solid var(--accent)" : "2px solid transparent",
-            borderRight: "1px solid var(--border)",
+            [nextSide]: "1px solid var(--border)",
             cursor: mobile && !showChat ? "not-allowed" : "pointer",
             color: activeTopPanel === "system" ? "var(--text)" : "var(--text-muted)",
             opacity: mobile && !showChat ? 0.45 : 1,
@@ -1509,7 +1515,7 @@ export function AppShell() {
             background: activeTopPanel === "tools" ? "var(--bg-selected)" : "none",
             border: "none",
             borderTop: activeTopPanel === "tools" ? "2px solid var(--accent)" : "2px solid transparent",
-            borderRight: "1px solid var(--border)",
+            [nextSide]: "1px solid var(--border)",
             cursor: mobile && !showChat ? "not-allowed" : "pointer",
             color: activeTopPanel === "tools" ? "var(--text)" : "var(--text-muted)",
             opacity: mobile && !showChat ? 0.45 : 1,
@@ -1591,13 +1597,13 @@ export function AppShell() {
         className={mobile ? "mobile-session-stats" : undefined}
         data-mobile-toolbar-stats={mobile ? "true" : undefined}
         style={{
-          marginLeft: mobile ? 0 : "auto",
+          marginInlineStart: mobile ? 0 : "auto",
           display: "flex", alignItems: "center", justifyContent: "flex-end",
           flex: mobile ? 1 : undefined,
           minWidth: 0,
           gap: mobile ? 7 : 10,
-          paddingLeft: mobile ? 6 : 12,
-          paddingRight: mobile ? 6 : 12,
+          paddingInlineStart: mobile ? 6 : 12,
+          paddingInlineEnd: mobile ? 6 : 12,
           height: "100%",
           overflow: "hidden",
           visibility: covered ? "hidden" : "visible",
@@ -1711,13 +1717,13 @@ export function AppShell() {
         aria-label={rightPanelOpen ? translate("files.hidePanel") : translate("files.showPanel")}
         data-mobile-toolbar-file={mobile ? "true" : undefined}
         style={{
-          marginLeft: !mobile && !sessionStats && !contextUsage ? "auto" : 0,
+          marginInlineStart: !mobile && !sessionStats && !contextUsage ? "auto" : 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
           visibility: covered ? "hidden" : "visible",
           pointerEvents: covered ? "none" : "auto",
           background: rightPanelOpen ? "var(--bg-selected)" : "none",
-          border: "none", borderLeft: "1px solid var(--border)",
+          border: "none", [prevSide]: "1px solid var(--border)",
           color: rightPanelOpen ? "var(--text)" : "var(--text-muted)",
           cursor: "pointer", flexShrink: 0, transition: "color 0.12s, background 0.12s",
         }}
@@ -1787,6 +1793,25 @@ export function AppShell() {
         background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 24%, transparent), transparent);
         animation: session-info-light-wash 620ms ease-out both;
       }
+      html[dir="rtl"] .session-info-popover::after {
+        left: auto;
+        right: 0;
+        background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--accent) 24%, transparent), transparent);
+        animation-name: session-info-light-wash-rtl;
+      }
+      @keyframes session-info-light-wash-rtl {
+        0% {
+          opacity: 0;
+          transform: translateX(110%) skewX(16deg);
+        }
+        24% {
+          opacity: 0.42;
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(-115%) skewX(16deg);
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         .session-info-popover,
         .session-info-popover::after {
@@ -1814,6 +1839,9 @@ export function AppShell() {
         .sidebar-container.sidebar-mobile-pending.sidebar-open {
           transform: translateX(calc(-100% - env(safe-area-inset-left)));
           box-shadow: none;
+        }
+        html[dir="rtl"] .sidebar-container.sidebar-mobile-pending.sidebar-open {
+          transform: translateX(calc(100% + env(safe-area-inset-right)));
         }
       }
     `}</style>
@@ -1849,7 +1877,7 @@ export function AppShell() {
         style={{
           "--sidebar-width": `${sidebarResizer.width}px`,
           background: "var(--bg-panel)",
-          borderRight: "1px solid var(--border)",
+          [prevSide]: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
@@ -1882,7 +1910,7 @@ export function AppShell() {
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-              background: "none", border: "none", borderRight: "1px solid var(--border)",
+              background: "none", border: "none", [nextSide]: "1px solid var(--border)",
               color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
@@ -1926,7 +1954,7 @@ export function AppShell() {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
                     background: mobileToolbarMoreOpen ? "var(--bg-selected)" : "none",
-                    border: "none", borderRight: "1px solid var(--border)",
+                    border: "none", [nextSide]: "1px solid var(--border)",
                     color: mobileToolbarMoreOpen ? "var(--text)" : "var(--text-muted)",
                     cursor: "pointer", flexShrink: 0, transition: "color 0.12s, background 0.12s",
                   }}
@@ -1954,9 +1982,9 @@ export function AppShell() {
                   style={{
                     position: "absolute",
                     top: 0,
-                    right: 0,
+                    right: rtl ? TOP_BAR_ICON_BUTTON_SIZE : 0,
                     bottom: 0,
-                    left: TOP_BAR_ICON_BUTTON_SIZE,
+                    left: rtl ? 0 : TOP_BAR_ICON_BUTTON_SIZE,
                     zIndex: 20,
                     display: "flex",
                     alignItems: "stretch",
@@ -2303,15 +2331,15 @@ export function AppShell() {
                  {translate("workspace.selectSession")}
               </div>
             ) : (
-              <div style={{ position: "absolute", top: 12, left: 12, display: "flex", alignItems: "flex-start", gap: 8, userSelect: "none", pointerEvents: "none" }}>
+              <div style={{ position: "absolute", top: 12, insetInlineStart: 12, display: "flex", alignItems: "flex-start", gap: 8, userSelect: "none", pointerEvents: "none" }}>
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7, flexShrink: 0 }}>
                   <line x1="20" y1="12" x2="4" y2="12" /><polyline points="10 6 4 12 10 18" />
                 </svg>
                 <div>
                    <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{translate("workspace.getStarted")}</div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.8 }}>
-                     <span style={{ color: "var(--text-dim)", marginRight: 6 }}>1.</span>{translate("workspace.selectProject")}<br />
-                     <span style={{ color: "var(--text-dim)", marginRight: 6 }}>2.</span>{translate("workspace.addModels")}
+                     <span style={{ color: "var(--text-dim)", marginInlineEnd: 6 }}>1.</span>{translate("workspace.selectProject")}<br />
+                     <span style={{ color: "var(--text-dim)", marginInlineEnd: 6 }}>2.</span>{translate("workspace.addModels")}
                   </div>
                 </div>
               </div>
@@ -2344,7 +2372,7 @@ export function AppShell() {
           "--right-panel-width": `${rightPanelResizer.width}px`,
           display: "flex",
           flexDirection: "column",
-          borderLeft: "1px solid var(--border)",
+          [prevSide]: "1px solid var(--border)",
           background: "var(--bg)",
         } as React.CSSProperties}
       >
@@ -2376,7 +2404,7 @@ export function AppShell() {
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-              background: "var(--bg-selected)", border: "none", borderLeft: "1px solid var(--border)",
+              background: "var(--bg-selected)", border: "none", [prevSide]: "1px solid var(--border)",
               color: "var(--text)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
             }}
             onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}

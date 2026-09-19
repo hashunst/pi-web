@@ -234,7 +234,7 @@ export function ChatMinimap({
   messageRefs,
   onRevealHistory,
 }: Props) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [visible, setVisible] = useState(false);
   const [allNodes, setAllNodes] = useState<NodeInfo[]>([]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -617,7 +617,7 @@ export function ChatMinimap({
         position: "relative",
         cursor: "pointer",
         userSelect: "none",
-        borderLeft: "1px solid var(--border)",
+        [dir === "rtl" ? "borderRight" : "borderLeft"]: "1px solid var(--border)",
         background: "var(--bg-panel)",
         overflow: "visible",
       }}

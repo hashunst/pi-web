@@ -227,6 +227,10 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
           border-right: 1px solid var(--border);
           background: color-mix(in srgb, var(--bg-panel) 94%, var(--bg));
         }
+        html[dir="rtl"] .tool-definitions-sidebar {
+          border-right: none;
+          border-left: 1px solid var(--border);
+        }
         .tool-definitions-list,
         .tool-definition-scroll {
           min-height: 0;
@@ -254,6 +258,9 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
           background: var(--bg-selected);
           box-shadow: inset 2px 0 0 var(--accent);
           color: var(--text);
+        }
+        html[dir="rtl"] .tool-definitions-item.selected {
+          box-shadow: inset -2px 0 0 var(--accent);
         }
         .tool-definitions-item code {
           max-width: 100%;
@@ -342,7 +349,7 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
         }
         .tool-definition-guidelines {
           margin: 0;
-          padding-left: 18px;
+          padding-inline-start: 18px;
           color: var(--text-muted);
           font-size: 11px;
           line-height: 1.5;

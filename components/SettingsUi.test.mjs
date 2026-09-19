@@ -124,9 +124,9 @@ test("all subpanel detail panes share one content hierarchy", () => {
   }
 });
 
-test("detail header actions keep buttons and switches aligned to the right", () => {
+test("detail header actions keep buttons and switches aligned to the inline end", () => {
   const sources = Object.fromEntries(configSources);
-  assert.match(cssSource, /\.config-detail-actions \{[\s\S]*?justify-content: flex-end[\s\S]*?margin-left: auto/);
+  assert.match(cssSource, /\.config-detail-actions \{[\s\S]*?justify-content: flex-end[\s\S]*?margin-inline-start: auto/);
   for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigDetailActions>/);
   }

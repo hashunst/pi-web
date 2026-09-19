@@ -23,7 +23,7 @@ test("uses shared sidebar sizing for providers and matching indented model rows"
   assert.match(sidebar, /<ConfigSidebarItem[\s\S]*?active=\{isProviderSelected\}/);
   assert.match(sidebar, /className="models-sidebar-indented-item"/);
   assert.match(sidebar, /className="models-sidebar-indented-item models-sidebar-add-item"/);
-  assert.match(cssSource, /\.models-sidebar-indented-item \{[\s\S]*?padding-left: 26px/);
+  assert.match(cssSource, /\.models-sidebar-indented-item \{[\s\S]*?padding-inline-start: 26px/);
 });
 
 test("ignores malformed auth provider responses", () => {

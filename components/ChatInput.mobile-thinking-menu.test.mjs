@@ -4,9 +4,9 @@ import test from "node:test";
 
 const source = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 
-test("anchors the mobile reasoning menu to its left edge", () => {
+test("anchors the reasoning dropdown to the mobile menu edge (inline) and inline end on desktop", () => {
   assert.match(
     source,
-    /thinkingDropdownOpen[\s\S]*?bottom: "calc\(100% \+ 6px\)"[\s\S]*?isMobile \? \{ left: 0 \} : \{ right: 0 \}/,
+    /thinkingDropdownOpen[\s\S]*?bottom: "calc\(100% \+ 6px\)"[\s\S]*?isMobile \? \{ insetInlineStart: 0 \} : \{ insetInlineEnd: 0 \}/,
   );
 });
